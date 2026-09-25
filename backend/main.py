@@ -26,47 +26,65 @@ import os
 
 print("Booting AI Engine: Loading official MPLADS data...")
 csv_path = "official_mplads_works.csv"
+use_synthetic_fallback = False
 
 if os.path.exists(csv_path):
-    official_df = pd.read_csv(csv_path)
-    
-    # 1. Dynamically find the financial and text columns in the official dataset
-    cost_col = [col for col in official_df.columns if 'cost' in col.lower() or 'amount' in col.lower() or 'value' in col.lower()][0]
-    text_col = [col for col in official_df.columns if 'work' in col.lower() or 'description' in col.lower() or 'activity' in col.lower()][0]
-    
-    # 2. Clean the financial data for the Isolation Forest
-    official_df[cost_col] = pd.to_numeric(official_df[cost_col], errors='coerce').fillna(0)
-    district_mean = official_df[cost_col].mean()
-    
-    train_df = pd.DataFrame({
-        'sanction_amount': official_df[cost_col],
-        'cost_deviation': official_df[cost_col] / (district_mean + 1)
-    })
-    
-    # Train financial anomaly detector on real MoSPI cost distributions
-    iso_forest = IsolationForest(contamination=0.04, random_state=42)
-    iso_forest.fit(train_df[['sanction_amount', 'cost_deviation']])
-    
-    # 3. Clean the text data for the NLP duplicate detector
-    historical_titles = official_df[text_col].dropna().astype(str).tolist()
-    
-    # Train NLP vectorizer on real historical work descriptions
-    vectorizer = TfidfVectorizer(stop_words='english', max_features=10000)
-    historical_tfidf = vectorizer.fit_transform(historical_titles)
-    
-    print(f"✅ AI successfully trained on {len(official_df)} official MPLADS records.")
+    try:
+        official_df = pd.read_csv(csv_path)
+        
+        # 1. Safely find the financial and text columns using broader keywords
+        cost_keywords = ['cost', 'amount', 'value', 'expenditure', 'sanction', 'fund', 'rupees', 'rs']
+        text_keywords = ['work', 'description', 'activity', 'name', 'title', 'project', 'detail']
+        
+        cost_cols = [col for col in official_df.columns if any(k in col.lower() for k in cost_keywords)]
+        text_cols = [col for col in official_df.columns if any(k in col.lower() for k in text_keywords)]
+        
+        if not cost_cols or not text_cols:
+            print("⚠️ ERROR: Could not find matching cost or text columns. Using fallback data.")
+            use_synthetic_fallback = True
+        else:
+            cost_col = cost_cols[0]
+            text_col = text_cols[0]
+            print(f"✅ Using '{cost_col}' for financials and '{text_col}' for descriptions.")
+            
+            # 2. Clean the financial data for the Isolation Forest
+            official_df[cost_col] = pd.to_numeric(official_df[cost_col], errors='coerce').fillna(0)
+            district_mean = official_df[cost_col].mean()
+            
+            train_df = pd.DataFrame({
+                'sanction_amount': official_df[cost_col],
+                'cost_deviation': official_df[cost_col] / (district_mean + 1)
+            })
+            
+            iso_forest = IsolationForest(contamination=0.04, random_state=42)
+            iso_forest.fit(train_df[['sanction_amount', 'cost_deviation']])
+            
+            # 3. Clean the text data for the NLP duplicate detector
+            historical_titles = official_df[text_col].dropna().astype(str).tolist()
+            vectorizer = TfidfVectorizer(stop_words='english', max_features=10000)
+            historical_tfidf = vectorizer.fit_transform(historical_titles)
+            
+            print(f"✅ AI successfully trained on {len(official_df)} official MPLADS records.")
+            
+    except Exception as e:
+        print(f"⚠️ Failed to parse CSV ({e}). Using synthetic fallback data.")
+        use_synthetic_fallback = True
 else:
-    print("⚠️ 'official_mplads_works.csv' not found. Falling back to synthetic safe-mode baseline.")
-    # (Fallback synthetic code from before can remain here just in case)
+    print("⚠️ 'official_mplads_works.csv' not found. Using synthetic fallback data.")
+    use_synthetic_fallback = True
+
+# --- SYNTHETIC FALLBACK (Prevents server crashes) ---
+if use_synthetic_fallback:
     baseline_costs = np.random.uniform(500000, 3000000, 200)
     baseline_deviations = np.random.uniform(0.9, 1.2, 200)
     train_df = pd.DataFrame({'sanction_amount': baseline_costs, 'cost_deviation': baseline_deviations})
     iso_forest = IsolationForest(contamination=0.04, random_state=42)
     iso_forest.fit(train_df[['sanction_amount', 'cost_deviation']])
     
-    historical_titles = ["Construction of concrete road", "Solar street lights", "Water tank"]
+    historical_titles = ["Construction of concrete road", "Solar street lights", "Water tank", "Boundary wall"]
     vectorizer = TfidfVectorizer(stop_words='english')
     historical_tfidf = vectorizer.fit_transform(historical_titles)
+    print("✅ Fallback synthetic models loaded successfully.")
 
 known_image_hashes = {}
 # ----------------------------------------------------------------
