@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import axios from 'axios';
 import { ShieldCheck, AlertCircle, Camera, CheckSquare, Layers, Send } from 'lucide-react';
 
-const API_BASE = 'http://127.0.0.1:8000';
+const API_BASE = 'https://netra-backend-kmke.onrender.com';
 
 export default function App() {
   const [form, setForm] = useState({
