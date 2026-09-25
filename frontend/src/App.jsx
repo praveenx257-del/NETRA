@@ -4,7 +4,7 @@ import { ShieldCheck, Camera, CheckSquare, Activity, FileText, AlertTriangle, La
 
 // ⚠️ REPLACE THIS WITH YOUR EXACT RENDER URL (NO TRAILING SLASH)
 // Example: 'https://netra-backend-abc.onrender.com'
-const API_BASE = 'https://netra-dashboard-ctb1jhv3a-netra16.vercel.app/';
+const API_BASE = 'https://netra-backend-kmke.onrender.com';
 
 export default function App() {
   const [form, setForm] = useState({
