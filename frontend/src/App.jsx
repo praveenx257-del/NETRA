@@ -1,354 +1,236 @@
-import React, { useState, useEffect } from 'react';
-import axios from 'axios';
-import { ShieldCheck, Camera, CheckSquare, Activity, FileText, AlertTriangle, Landmark, Server, Loader2 } from 'lucide-react';
-
-const API_BASE = 'https://netra-backend-kmke.onrender.com';
+import React, { useState } from 'react';
+import { 
+  Search, Download, IndianRupee, FileText, PieChart, Users, 
+  CheckCircle2, Hourglass, AlertTriangle, Info, MapPin, 
+  BarChart2, MessageSquare, Home, ShieldAlert
+} from 'lucide-react';
 
 export default function App() {
-  const [form, setForm] = useState({
-    project_id: 'MPLAD-26-DHN-0042',
-    district: 'Dhanbad',
-    work_name: 'Construction of concrete approach road and drainage near IIT campus',
-    sanction_amount: 4500000,
-    district_mean_cost: 1100000,
-    physical_progress: 0,
-    funds_released: 3500000
-  });
+  const [activeTab, setActiveTab] = useState('Overview');
 
-  const [evaluation, setEvaluation] = useState(null);
-  const [loading, setLoading] = useState(false);
-  const [serverStatus, setServerStatus] = useState('checking'); 
-  const [photoFile, setPhotoFile] = useState(null);
-  const [photoResult, setPhotoResult] = useState(null);
-  const [logs, setLogs] = useState([]);
-
-  const api = axios.create({
-    baseURL: API_BASE,
-    timeout: 60000, 
-  });
-
-  const checkServerStatus = async () => {
-    try {
-      setServerStatus('checking');
-      const res = await api.get('/api/feedback-logs');
-      setLogs(res.data);
-      setServerStatus('online');
-    } catch (err) {
-      console.error("Backend connection failed:", err);
-      setServerStatus('offline');
+  // Exact data replication from the reference image
+  const metrics = [
+    {
+      id: 1,
+      title: 'TOTAL ALLOCATED',
+      value: '11,681.9 CR',
+      subtext: 'Total funds allocated to MPs\nBoth Houses - Lok Sabha 2024-29',
+      icon: IndianRupee,
+      color: 'bg-blue-100 text-blue-600',
+      hasInfo: false
+    },
+    {
+      id: 2,
+      title: 'TOTAL EXPENDITURE',
+      value: '3,995.3 CR',
+      subtext: 'Vendor expenditure recorded for completed and ongoing works\nBoth Houses - Lok Sabha 2024-29',
+      icon: FileText,
+      color: 'bg-emerald-100 text-emerald-600',
+      hasInfo: false
+    },
+    {
+      id: 3,
+      title: 'FUND UTILIZATION',
+      value: '67.7%',
+      subtext: 'Share of allocation recommended by MPs\nBoth Houses - Lok Sabha 2024-29',
+      icon: PieChart,
+      color: 'bg-yellow-100 text-yellow-600',
+      hasInfo: true
+    },
+    {
+      id: 4,
+      title: 'EXPENDITURE RATE',
+      value: '34.2%',
+      subtext: 'Vendor expenditure recorded as a share of allocation\nBoth Houses - Lok Sabha 2024-29',
+      icon: FileText,
+      color: 'bg-blue-100 text-blue-600',
+      hasInfo: true
+    },
+    {
+      id: 5,
+      title: 'TOTAL MPs',
+      value: '774',
+      subtext: 'Number of MPs in the system\nBoth Houses - Lok Sabha 2024-29',
+      icon: Users,
+      color: 'bg-blue-100 text-blue-600',
+      hasInfo: true
+    },
+    {
+      id: 6,
+      title: 'WORKS COMPLETED',
+      value: '44,028 (₹2,408.7 CR)',
+      subtext: 'Total completed projects and their value\nBoth Houses - Lok Sabha 2024-29',
+      icon: CheckCircle2,
+      color: 'bg-emerald-100 text-emerald-600',
+      hasInfo: false
+    },
+    {
+      id: 7,
+      title: 'WORKS PENDING',
+      value: '87,113',
+      subtext: 'Projects yet to be completed\nBoth Houses - Lok Sabha 2024-29',
+      icon: Hourglass,
+      color: 'bg-yellow-100 text-yellow-600',
+      hasInfo: false
+    },
+    {
+      id: 8,
+      title: 'ONGOING-WORK PAYMENTS',
+      value: '1,586.7 CR',
+      subtext: 'Vendor payments linked to works not yet marked complete\nBoth Houses - Lok Sabha 2024-29',
+      icon: AlertTriangle,
+      color: 'bg-red-100 text-red-500',
+      hasInfo: true
     }
-  };
-
-  useEffect(() => {
-    if (API_BASE === 'YOUR_RENDER_URL_HERE') {
-      setServerStatus('offline');
-    } else {
-      checkServerStatus();
-    }
-  }, []);
-
-  const handleEvaluate = async (e) => {
-    e.preventDefault();
-    setLoading(true);
-    setEvaluation(null);
-    try {
-      const res = await api.post('/api/evaluate-work', form);
-      setEvaluation(res.data);
-      setServerStatus('online'); 
-    } catch (err) {
-      alert(`Connection failed. Ensure ${API_BASE} is correct and the server is awake.`);
-      setServerStatus('offline');
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const handlePhotoUpload = async (e) => {
-    e.preventDefault();
-    if (!photoFile) return;
-    const data = new FormData();
-    data.append('project_id', form.project_id);
-    data.append('file', photoFile);
-
-    try {
-      const res = await api.post('/api/verify-photo', data);
-      setPhotoResult(res.data);
-    } catch (err) {
-      alert('Photo verification failed. Check connection.');
-    }
-  };
-
-  const handleFeedback = async (decision) => {
-    if (!evaluation) return;
-    try {
-      await api.post('/api/officer-feedback', {
-        project_id: evaluation.project_id,
-        decision,
-        officer_notes: `Marked by Nodal Officer as ${decision}`
-      });
-      checkServerStatus(); 
-      alert(`Official Audit Recorded: ${decision}`);
-    } catch (err) {
-      alert('Failed to save official feedback to ledger.');
-    }
-  };
-
-  const badgeColor = {
-    Priority: 'bg-[#b91c1c] text-white border border-[#7f1d1d]',
-    Review: 'bg-[#c2410c] text-white border border-[#9a3412]',
-    Watch: 'bg-[#f59e0b] text-black border border-[#d97706]',
-    Low: 'bg-[#15803d] text-white border border-[#14532d]'
-  };
+  ];
 
   return (
-    <div className="min-h-screen bg-[#f3f4f6] font-sans">
-      <div className="h-1.5 w-full flex">
-        <div className="flex-1 bg-[#FF9933]"></div>
-        <div className="flex-1 bg-white"></div>
-        <div className="flex-1 bg-[#138808]"></div>
+    <div className="min-h-screen bg-[#f8f9fa] font-sans text-slate-800">
+      {/* Top Navigation Bar */}
+      <nav className="bg-white border-b border-slate-200">
+        <div className="max-w-[1400px] mx-auto px-6 h-16 flex items-center justify-between">
+          <div className="flex flex-col justify-center">
+            <span className="text-[#b48e4b] font-serif text-xl font-medium leading-tight">MPLADS Dashboard</span>
+            <span className="text-blue-700 text-[10px] font-bold tracking-widest leading-tight">EMPOWERED INDIAN</span>
+          </div>
+
+          <div className="flex items-center space-x-1">
+            <button className="flex items-center gap-2 bg-blue-50 text-blue-700 px-4 py-2 rounded-md text-sm font-semibold">
+              <Home size={16} /> Overview
+            </button>
+            <button className="flex items-center gap-2 text-slate-500 hover:bg-slate-50 px-4 py-2 rounded-md text-sm font-medium transition">
+              <Search size={16} /> Find Projects
+            </button>
+            <button className="flex items-center gap-2 text-slate-500 hover:bg-slate-50 px-4 py-2 rounded-md text-sm font-medium transition">
+              <MapPin size={16} /> Browse States
+            </button>
+            <button className="flex items-center gap-2 text-slate-500 hover:bg-slate-50 px-4 py-2 rounded-md text-sm font-medium transition">
+              <Users size={16} /> Browse MPs
+            </button>
+            <button className="flex items-center gap-2 text-slate-500 hover:bg-slate-50 px-4 py-2 rounded-md text-sm font-medium transition">
+              <BarChart2 size={16} /> Compare
+            </button>
+            <button className="flex items-center gap-2 text-slate-500 hover:bg-slate-50 px-4 py-2 rounded-md text-sm font-medium transition">
+              <MessageSquare size={16} /> Feedback
+            </button>
+          </div>
+
+          <div className="flex items-center gap-3">
+            <div className="flex items-center gap-2 text-sm">
+              <span className="text-slate-500">House</span>
+              <select className="border border-slate-300 rounded px-2 py-1 text-slate-700 bg-white outline-none">
+                <option>Both Houses</option>
+              </select>
+            </div>
+            <div className="flex items-center gap-2 text-sm">
+              <span className="text-slate-500">LS Term</span>
+              <select className="border border-slate-300 rounded px-2 py-1 text-slate-700 bg-white outline-none opacity-50">
+                <option>18th</option>
+              </select>
+            </div>
+          </div>
+        </div>
+      </nav>
+
+      {/* Breadcrumb */}
+      <div className="max-w-[1400px] mx-auto px-6 py-3 text-xs font-medium text-slate-500">
+        Home / <span className="text-slate-800">MPLADS</span>
       </div>
 
-      <header className="bg-[#0f172a] text-white shadow-md border-b-4 border-[#1e293b]">
-        <div className="max-w-7xl mx-auto px-6 py-5 flex items-center justify-between">
-          <div className="flex items-center gap-4">
-            <Landmark size={36} className="text-[#e2e8f0]" />
-            <div>
-              <div className="text-[11px] font-bold tracking-widest text-[#94a3b8] uppercase mb-1">
-                Government of India | Ministry of Statistics and Programme Implementation
-              </div>
-              <h1 className="text-2xl font-black tracking-tight flex items-center gap-2">
-                MPLADS <span className="font-light text-[#cbd5e1]">| NETRA AI Node</span>
-              </h1>
-            </div>
+      <main className="max-w-[1400px] mx-auto px-6 pb-12">
+        {/* Gradient Line Accent */}
+        <div className="w-full h-0.5 bg-gradient-to-r from-blue-700 via-orange-400 to-emerald-600 mb-8 mt-2"></div>
+
+        {/* Page Header */}
+        <div className="mb-8">
+          <h1 className="text-[2.25rem] text-[#2c3e50] font-serif mb-3">MPLADS Dashboard</h1>
+          <p className="text-slate-600 text-sm font-medium">Overview of Member of Parliament Local Area Development Scheme</p>
+        </div>
+
+        {/* Search and Export Bar */}
+        <div className="flex justify-between items-center mb-8">
+          <div className="relative w-96">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={18} />
+            <input 
+              type="text" 
+              placeholder="Search MPs or Constituencies..." 
+              className="w-full pl-10 pr-10 py-2.5 rounded-lg border border-slate-200 shadow-sm focus:outline-none focus:ring-1 focus:ring-blue-500 bg-white text-sm"
+            />
+            <Search className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400" size={18} />
           </div>
           
-          <div className="flex items-center gap-3 bg-[#1e293b] px-4 py-2 rounded shadow-inner border border-[#334155]">
-            <Server size={16} className="text-slate-400" />
-            <span className="text-xs font-bold uppercase tracking-wider text-slate-300">Engine Status:</span>
-            {serverStatus === 'checking' && <span className="flex items-center gap-1 text-yellow-400 text-xs font-bold"><Loader2 size={12} className="animate-spin"/> BOOTING</span>}
-            {serverStatus === 'online' && <span className="flex items-center gap-1 text-[#4ade80] text-xs font-bold"><span className="h-2 w-2 bg-[#4ade80] rounded-full animate-pulse"></span> ONLINE</span>}
-            {serverStatus === 'offline' && <span className="flex items-center gap-1 text-[#f87171] text-xs font-bold"><span className="h-2 w-2 bg-[#f87171] rounded-full"></span> OFFLINE</span>}
+          <button className="flex items-center gap-2 bg-white border border-slate-200 shadow-sm px-4 py-2.5 rounded-lg text-sm font-semibold text-slate-700 hover:bg-slate-50 transition">
+            <Download size={16} /> Export Data <span className="ml-1 text-[10px]">▼</span>
+          </button>
+        </div>
+
+        {/* Grid of Metric Cards */}
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-10">
+          {metrics.map((metric) => (
+            <div key={metric.id} className="bg-white border border-slate-200 rounded-xl p-5 shadow-sm hover:shadow-md transition">
+              <div className="flex items-start justify-between mb-2">
+                <div className="flex items-center gap-3">
+                  <div className={`p-2 rounded-lg ${metric.color}`}>
+                    <metric.icon size={18} strokeWidth={2.5} />
+                  </div>
+                  <h3 className="text-xs font-semibold text-slate-500 tracking-wider uppercase flex items-center gap-1">
+                    {metric.title}
+                    {metric.hasInfo && <Info size={14} className="text-blue-600 cursor-pointer" />}
+                  </h3>
+                </div>
+              </div>
+              <div className="mt-3">
+                <div className="text-2xl font-serif text-slate-800 tracking-tight mb-2">
+                  {metric.value}
+                </div>
+                <p className="text-[10px] text-slate-500 leading-tight whitespace-pre-line">
+                  {metric.subtext}
+                </p>
+              </div>
+            </div>
+          ))}
+        </div>
+
+        {/* AI NETRA Integration Section (Matches the theme) */}
+        <div className="mt-12">
+          <div className="w-full h-px bg-slate-200 mb-8"></div>
+          <div className="flex items-center gap-3 mb-6">
+            <ShieldAlert className="text-blue-700" size={28} />
+            <div>
+              <h2 className="text-2xl text-[#2c3e50] font-serif">NETRA AI Intelligence Alerts</h2>
+              <p className="text-slate-600 text-sm font-medium">Real-time anomaly detection across ongoing projects</p>
+            </div>
+          </div>
+
+          <div className="bg-white border border-slate-200 rounded-xl shadow-sm overflow-hidden">
+            <table className="w-full text-left text-sm">
+              <thead className="bg-[#f8f9fa] border-b border-slate-200">
+                <tr>
+                  <th className="px-6 py-4 font-semibold text-slate-600 uppercase text-xs tracking-wider">Sanction ID</th>
+                  <th className="px-6 py-4 font-semibold text-slate-600 uppercase text-xs tracking-wider">Project Description</th>
+                  <th className="px-6 py-4 font-semibold text-slate-600 uppercase text-xs tracking-wider">AI Flag Reason</th>
+                  <th className="px-6 py-4 font-semibold text-slate-600 uppercase text-xs tracking-wider">Risk Level</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-slate-100">
+                <tr className="hover:bg-slate-50">
+                  <td className="px-6 py-4 font-mono text-slate-700">PRJ_26_DHN</td>
+                  <td className="px-6 py-4 text-slate-600">Construction of concrete approach road and drainage near IIT campus</td>
+                  <td className="px-6 py-4 text-red-600 text-xs font-medium">Cost deviation is 4.09x higher than historical average.</td>
+                  <td className="px-6 py-4"><span className="bg-red-100 text-red-700 px-3 py-1 rounded text-[10px] font-bold uppercase">Priority</span></td>
+                </tr>
+                <tr className="hover:bg-slate-50">
+                  <td className="px-6 py-4 font-mono text-slate-700">PRJ_26_RNC</td>
+                  <td className="px-6 py-4 text-slate-600">Solar street lights installation in Ward 12</td>
+                  <td className="px-6 py-4 text-yellow-600 text-xs font-medium">Duplicate Risk: 85% text match with prior sanction.</td>
+                  <td className="px-6 py-4"><span className="bg-yellow-100 text-yellow-700 px-3 py-1 rounded text-[10px] font-bold uppercase">Watch</span></td>
+                </tr>
+              </tbody>
+            </table>
           </div>
         </div>
-      </header>
 
-      <div className="max-w-7xl mx-auto p-6 grid grid-cols-1 lg:grid-cols-12 gap-6 mt-4">
-        
-        <div className="lg:col-span-7 space-y-6">
-          <section className="bg-white rounded border border-slate-300 shadow-sm overflow-hidden">
-            <div className="bg-[#f8fafc] border-b border-slate-200 px-5 py-3 flex items-center gap-2">
-              <FileText size={18} className="text-[#334155]" />
-              <h2 className="text-sm font-bold text-[#0f172a] uppercase tracking-wide">Work Proposal Ingestion Form</h2>
-            </div>
-            
-            <form onSubmit={handleEvaluate} className="p-6 space-y-5">
-              <div className="grid grid-cols-2 gap-5">
-                <div>
-                  <label className="block text-[11px] font-bold text-slate-600 uppercase mb-1">Sanction ID</label>
-                  <input
-                    className="w-full border border-slate-300 p-2 text-sm focus:border-[#1d4ed8] focus:ring-1 focus:ring-[#1d4ed8] outline-none rounded-sm bg-slate-50"
-                    value={form.project_id}
-                    onChange={e => setForm({...form, project_id: e.target.value})}
-                  />
-                </div>
-                <div>
-                  <label className="block text-[11px] font-bold text-slate-600 uppercase mb-1">Implementing District</label>
-                  <input
-                    className="w-full border border-slate-300 p-2 text-sm focus:border-[#1d4ed8] focus:ring-1 focus:ring-[#1d4ed8] outline-none rounded-sm bg-slate-50"
-                    value={form.district}
-                    onChange={e => setForm({...form, district: e.target.value})}
-                  />
-                </div>
-              </div>
-
-              <div>
-                <label className="block text-[11px] font-bold text-slate-600 uppercase mb-1">Detailed Work Description</label>
-                <textarea
-                  rows="2"
-                  className="w-full border border-slate-300 p-2 text-sm focus:border-[#1d4ed8] focus:ring-1 focus:ring-[#1d4ed8] outline-none rounded-sm bg-slate-50"
-                  value={form.work_name}
-                  onChange={e => setForm({...form, work_name: e.target.value})}
-                />
-              </div>
-
-              <div className="grid grid-cols-2 gap-5 p-4 bg-[#f8fafc] border border-slate-200 rounded-sm">
-                <div>
-                  <label className="block text-[11px] font-bold text-slate-600 uppercase mb-1">Sanctioned Cost (₹)</label>
-                  <input
-                    type="number"
-                    className="w-full border border-slate-300 p-2 text-sm focus:border-[#1d4ed8] outline-none rounded-sm bg-white"
-                    value={form.sanction_amount}
-                    onChange={e => setForm({...form, sanction_amount: parseFloat(e.target.value) || 0})}
-                  />
-                </div>
-                <div>
-                  <label className="block text-[11px] font-bold text-slate-600 uppercase mb-1">District Baseline Mean (₹)</label>
-                  <input
-                    type="number"
-                    className="w-full border border-slate-300 p-2 text-sm focus:border-[#1d4ed8] outline-none rounded-sm bg-white text-slate-500"
-                    value={form.district_mean_cost}
-                    onChange={e => setForm({...form, district_mean_cost: parseFloat(e.target.value) || 0})}
-                  />
-                </div>
-              </div>
-
-              <div className="grid grid-cols-2 gap-5">
-                <div>
-                  <label className="block text-[11px] font-bold text-slate-600 uppercase mb-1">Reported Physical Progress (%)</label>
-                  <input
-                    type="number"
-                    className="w-full border border-slate-300 p-2 text-sm focus:border-[#1d4ed8] outline-none rounded-sm bg-slate-50"
-                    value={form.physical_progress}
-                    onChange={e => setForm({...form, physical_progress: parseInt(e.target.value) || 0})}
-                  />
-                </div>
-                <div>
-                  <label className="block text-[11px] font-bold text-slate-600 uppercase mb-1">Total Funds Released (₹)</label>
-                  <input
-                    type="number"
-                    className="w-full border border-slate-300 p-2 text-sm focus:border-[#1d4ed8] outline-none rounded-sm bg-slate-50"
-                    value={form.funds_released}
-                    onChange={e => setForm({...form, funds_released: parseFloat(e.target.value) || 0})}
-                  />
-                </div>
-              </div>
-
-              <button
-                type="submit"
-                disabled={loading || serverStatus === 'offline'}
-                className="w-full bg-[#1e40af] hover:bg-[#1e3a8a] disabled:bg-slate-400 text-white font-bold py-3 text-sm transition shadow-sm flex justify-center items-center gap-2 rounded-sm"
-              >
-                {loading ? (
-                  <><Loader2 size={16} className="animate-spin" /> EXECUTING ML INFERENCE...</>
-                ) : serverStatus === 'offline' ? (
-                  'BACKEND OFFLINE - CHECK CONFIGURATION'
-                ) : (
-                  <><Activity size={16} /> INITIALIZE AI RISK ASSESSMENT</>
-                )}
-              </button>
-              {loading && <p className="text-center text-[10px] text-slate-500 mt-2">Note: Render free tier cold-starts may take up to 50 seconds on the first request.</p>}
-            </form>
-          </section>
-        </div>
-
-        <div className="lg:col-span-5 space-y-6">
-          <section className="bg-white rounded border border-slate-300 shadow-sm overflow-hidden min-h-[300px]">
-            <div className="bg-[#0f172a] border-b border-slate-800 px-5 py-3 flex items-center gap-2 text-white">
-              <ShieldCheck size={18} className="text-[#38bdf8]" />
-              <h2 className="text-sm font-bold uppercase tracking-wide">Automated Audit Verdict</h2>
-            </div>
-            
-            <div className="p-6">
-              {evaluation ? (
-                <div className="space-y-5 animate-in fade-in duration-300">
-                  <div className="flex flex-col gap-1">
-                    <span className="text-[10px] uppercase font-bold text-slate-500">Subject File</span>
-                    <span className="font-mono text-sm font-bold text-[#0f172a]">{evaluation.project_id}</span>
-                  </div>
-
-                  <div className={`p-4 rounded-sm flex items-center justify-between ${badgeColor[evaluation.risk_tier]}`}>
-                    <span className="text-xs font-bold uppercase tracking-wider">Computed Risk Tier</span>
-                    <span className="text-lg font-black tracking-widest">{evaluation.risk_tier}</span>
-                  </div>
-
-                  <div className="bg-[#fffbeb] border border-[#fde68a] p-4 rounded-sm text-sm space-y-2">
-                    <div className="text-[11px] font-bold text-[#b45309] uppercase flex items-center gap-1">
-                      <AlertTriangle size={14}/> Detection Signatures
-                    </div>
-                    <ul className="list-disc pl-5 space-y-1 text-[#92400e] text-xs font-medium">
-                      {evaluation.flags.map((f, i) => (
-                        <li key={i}>{f}</li>
-                      ))}
-                    </ul>
-                  </div>
-
-                  <div className="grid grid-cols-3 gap-px bg-slate-200 border border-slate-200">
-                    <div className="bg-white p-3 text-center">
-                      <span className="text-[10px] text-slate-500 block uppercase font-bold mb-1">Cost Dev.</span>
-                      <span className="font-mono font-bold text-[#0f172a] text-sm">{evaluation.metrics.deviation_ratio}x</span>
-                    </div>
-                    <div className="bg-white p-3 text-center">
-                      <span className="text-[10px] text-slate-500 block uppercase font-bold mb-1">Benford Idx</span>
-                      <span className="font-mono font-bold text-[#0f172a] text-sm">{evaluation.metrics.benford_score}</span>
-                    </div>
-                    <div className="bg-white p-3 text-center">
-                      <span className="text-[10px] text-slate-500 block uppercase font-bold mb-1">NLP Match</span>
-                      <span className="font-mono font-bold text-[#0f172a] text-sm">{evaluation.metrics.max_title_similarity}%</span>
-                    </div>
-                  </div>
-
-                  <div className="flex gap-3 pt-3 border-t border-slate-200">
-                    <button onClick={() => handleFeedback('Confirmed Misappropriation')} className="flex-1 bg-white border border-[#b91c1c] text-[#b91c1c] hover:bg-[#fef2f2] font-bold py-2 text-[11px] uppercase tracking-wide rounded-sm transition">
-                      Confirm Anomaly
-                    </button>
-                    <button onClick={() => handleFeedback('Authorized Exception')} className="flex-1 bg-white border border-[#15803d] text-[#15803d] hover:bg-[#f0fdf4] font-bold py-2 text-[11px] uppercase tracking-wide rounded-sm transition">
-                      Mark Exception
-                    </button>
-                  </div>
-                </div>
-              ) : (
-                <div className="h-full flex flex-col items-center justify-center text-slate-400 py-12 space-y-3">
-                  <ShieldCheck size={48} className="opacity-20" />
-                  <p className="text-xs font-medium uppercase tracking-widest">Awaiting File Submission</p>
-                </div>
-              )}
-            </div>
-          </section>
-
-          <section className="bg-white rounded border border-slate-300 shadow-sm overflow-hidden">
-            <div className="bg-[#f8fafc] border-b border-slate-200 px-5 py-3 flex items-center gap-2">
-              <Camera size={18} className="text-[#334155]" />
-              <h2 className="text-sm font-bold text-[#0f172a] uppercase tracking-wide">Visual Asset Forensics</h2>
-            </div>
-            <div className="p-5 space-y-4">
-              <form onSubmit={handlePhotoUpload} className="flex flex-col gap-3">
-                <input
-                  type="file"
-                  accept="image/*"
-                  onChange={e => setPhotoFile(e.target.files[0])}
-                  className="text-xs file:mr-3 file:py-2 file:px-4 file:rounded-sm file:border-0 file:text-xs file:font-bold file:bg-[#e2e8f0] file:text-[#0f172a] hover:file:bg-[#cbd5e1] border border-slate-200 p-1 rounded-sm w-full"
-                />
-                <button type="submit" disabled={serverStatus === 'offline'} className="bg-[#334155] hover:bg-[#0f172a] disabled:bg-slate-300 text-white text-xs py-2.5 rounded-sm font-bold uppercase tracking-wider transition w-full">
-                  Run pHash Integrity Scan
-                </button>
-              </form>
-              
-              {photoResult && (
-                <div className={`p-4 rounded-sm border ${photoResult.is_tampered_or_duplicate ? 'bg-[#fef2f2] border-[#fca5a5] text-[#991b1b]' : 'bg-[#f0fdf4] border-[#86efac] text-[#166534]'}`}>
-                  <div className="text-xs font-bold uppercase tracking-wide mb-1">{photoResult.status}</div>
-                  <div className="text-[10px] font-mono break-all opacity-80">Fingerprint: {photoResult.photo_hash}</div>
-                </div>
-              )}
-            </div>
-          </section>
-
-          <section className="bg-white rounded border border-slate-300 shadow-sm overflow-hidden">
-             <div className="bg-[#f8fafc] border-b border-slate-200 px-5 py-3 flex items-center justify-between">
-              <div className="flex items-center gap-2">
-                <CheckSquare size={18} className="text-[#334155]" />
-                <h2 className="text-sm font-bold text-[#0f172a] uppercase tracking-wide">Central Audit Ledger</h2>
-              </div>
-              <span className="text-[10px] font-bold bg-slate-200 text-slate-600 px-2 py-0.5 rounded-sm">{logs.length} RECORDS</span>
-            </div>
-            <div className="p-0">
-              <ul className="text-xs divide-y divide-slate-100 max-h-48 overflow-y-auto">
-                {logs.length === 0 && (
-                   <li className="p-4 text-center text-slate-400 font-medium italic">No manual audits recorded.</li>
-                )}
-                {logs.map((log, index) => (
-                  <li key={index} className="p-3 px-5 flex justify-between items-center hover:bg-slate-50">
-                    <span className="font-mono text-slate-600">{log.project_id}</span>
-                    <span className={`font-bold text-[10px] uppercase tracking-wider px-2 py-1 rounded-sm ${log.decision === 'Confirmed Misappropriation' ? 'bg-[#fef2f2] text-[#991b1b]' : 'bg-[#f0fdf4] text-[#166534]'}`}>
-                      {log.decision}
-                    </span>
-                  </li>
-                ))}
-              </ul>
-            </div>
-          </section>
-
-        </div>
-      </div>
+      </main>
     </div>
   );
 }
