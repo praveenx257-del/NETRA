@@ -2,8 +2,6 @@ import React, { useState, useEffect } from 'react';
 import axios from 'axios';
 import { ShieldCheck, Camera, CheckSquare, Activity, FileText, AlertTriangle, Landmark, Server, Loader2 } from 'lucide-react';
 
-// ⚠️ REPLACE THIS WITH YOUR EXACT RENDER URL (NO TRAILING SLASH)
-// Example: 'https://netra-backend-abc.onrender.com'
 const API_BASE = 'https://netra-backend-kmke.onrender.com';
 
 export default function App() {
@@ -19,12 +17,11 @@ export default function App() {
 
   const [evaluation, setEvaluation] = useState(null);
   const [loading, setLoading] = useState(false);
-  const [serverStatus, setServerStatus] = useState('checking'); // 'checking', 'online', 'offline'
+  const [serverStatus, setServerStatus] = useState('checking'); 
   const [photoFile, setPhotoFile] = useState(null);
   const [photoResult, setPhotoResult] = useState(null);
   const [logs, setLogs] = useState([]);
 
-  // Create an Axios instance with a 60-second timeout to handle Render's cold boot
   const api = axios.create({
     baseURL: API_BASE,
     timeout: 60000, 
@@ -57,7 +54,7 @@ export default function App() {
     try {
       const res = await api.post('/api/evaluate-work', form);
       setEvaluation(res.data);
-      setServerStatus('online'); // Confirm online if it succeeds
+      setServerStatus('online'); 
     } catch (err) {
       alert(`Connection failed. Ensure ${API_BASE} is correct and the server is awake.`);
       setServerStatus('offline');
@@ -89,7 +86,7 @@ export default function App() {
         decision,
         officer_notes: `Marked by Nodal Officer as ${decision}`
       });
-      checkServerStatus(); // Refresh logs
+      checkServerStatus(); 
       alert(`Official Audit Recorded: ${decision}`);
     } catch (err) {
       alert('Failed to save official feedback to ledger.');
@@ -105,14 +102,12 @@ export default function App() {
 
   return (
     <div className="min-h-screen bg-[#f3f4f6] font-sans">
-      {/* Tricolor Top Strip */}
       <div className="h-1.5 w-full flex">
         <div className="flex-1 bg-[#FF9933]"></div>
         <div className="flex-1 bg-white"></div>
         <div className="flex-1 bg-[#138808]"></div>
       </div>
 
-      {/* Official Government Header */}
       <header className="bg-[#0f172a] text-white shadow-md border-b-4 border-[#1e293b]">
         <div className="max-w-7xl mx-auto px-6 py-5 flex items-center justify-between">
           <div className="flex items-center gap-4">
@@ -127,7 +122,6 @@ export default function App() {
             </div>
           </div>
           
-          {/* Live Server Status Badge */}
           <div className="flex items-center gap-3 bg-[#1e293b] px-4 py-2 rounded shadow-inner border border-[#334155]">
             <Server size={16} className="text-slate-400" />
             <span className="text-xs font-bold uppercase tracking-wider text-slate-300">Engine Status:</span>
@@ -140,7 +134,6 @@ export default function App() {
 
       <div className="max-w-7xl mx-auto p-6 grid grid-cols-1 lg:grid-cols-12 gap-6 mt-4">
         
-        {/* LEFT COLUMN: Data Ingestion */}
         <div className="lg:col-span-7 space-y-6">
           <section className="bg-white rounded border border-slate-300 shadow-sm overflow-hidden">
             <div className="bg-[#f8fafc] border-b border-slate-200 px-5 py-3 flex items-center gap-2">
@@ -238,10 +231,7 @@ export default function App() {
           </section>
         </div>
 
-        {/* RIGHT COLUMN: Output & Forensics */}
         <div className="lg:col-span-5 space-y-6">
-          
-          {/* AI Verdict Card */}
           <section className="bg-white rounded border border-slate-300 shadow-sm overflow-hidden min-h-[300px]">
             <div className="bg-[#0f172a] border-b border-slate-800 px-5 py-3 flex items-center gap-2 text-white">
               <ShieldCheck size={18} className="text-[#38bdf8]" />
@@ -305,7 +295,6 @@ export default function App() {
             </div>
           </section>
 
-          {/* Photo Forensics */}
           <section className="bg-white rounded border border-slate-300 shadow-sm overflow-hidden">
             <div className="bg-[#f8fafc] border-b border-slate-200 px-5 py-3 flex items-center gap-2">
               <Camera size={18} className="text-[#334155]" />
@@ -333,7 +322,6 @@ export default function App() {
             </div>
           </section>
 
-          {/* Central Log */}
           <section className="bg-white rounded border border-slate-300 shadow-sm overflow-hidden">
              <div className="bg-[#f8fafc] border-b border-slate-200 px-5 py-3 flex items-center justify-between">
               <div className="flex items-center gap-2">
