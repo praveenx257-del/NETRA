@@ -1,15 +1,15 @@
 import os
 import re
 import hashlib
-import numpy as np
+import random
 import pandas as pd
+import numpy as np
 from fastapi import FastAPI, UploadFile, File, Form
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 from sklearn.ensemble import IsolationForest
 from sklearn.feature_extraction.text import TfidfVectorizer
 from sklearn.metrics.pairwise import cosine_similarity
-import random
 
 app = FastAPI(title="NETRA Analytics Engine")
 officer_audit_logs = []
@@ -22,7 +22,7 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# ----------------- REAL DATA INGESTION & MODEL TRAINING -----------------
+# ----------------- REAL DATA INGESTION & AI TRAINING -----------------
 iso_forest = IsolationForest(contamination=0.04, random_state=42)
 vectorizer = TfidfVectorizer(stop_words='english')
 historical_titles = []
@@ -38,52 +38,50 @@ if os.path.exists(CSV_FILE):
         # Load the actual OGD dataset
         df = pd.read_csv(CSV_FILE)
         
-        # Clean the currency column (remove commas from strings if they exist)
-        if 'recommended_amount' in df.columns:
-            df['sanction_amount'] = df['recommended_amount'].astype(str).str.replace(',', '').astype(float)
+        # Flexibly locate the cost column (handles variations in dataset headers)
+        cost_cols = [c for c in df.columns if any(k in c.lower() for k in ['amount', 'cost', 'value', 'sanction', 'recommended'])]
+        if cost_cols:
+            cost_col = cost_cols[0]
+            df['sanction_amount'] = pd.to_numeric(df[cost_col].astype(str).str.replace(',', ''), errors='coerce').fillna(0)
         else:
-            # Fallback if column name varies slightly in the downloaded CSV
-            cost_cols = [col for col in df.columns if any(k in col.lower() for k in ['cost', 'amount', 'value', 'sanction'])]
-            if cost_cols:
-                df['sanction_amount'] = pd.to_numeric(df[cost_cols[0]].astype(str).str.replace(',', ''), errors='coerce').fillna(0)
-            else:
-                df['sanction_amount'] = 1000000.0 # safe default
+            df['sanction_amount'] = 1000000.0 
 
-        # Ensure district column exists
-        district_col = 'implementing_district_per_lgd' if 'implementing_district_per_lgd' in df.columns else df.columns[1]
+        # Flexibly locate the district column
+        dist_cols = [c for c in df.columns if 'district' in c.lower()]
+        district_col = dist_cols[0] if dist_cols else df.columns[1]
 
-        # Calculate the actual historical mean cost per district based on real works
+        # Calculate historical mean cost per district based on real data
         district_means = df.groupby(district_col)['sanction_amount'].mean().to_dict()
         
-        # Calculate cost deviations
+        # Calculate cost deviations for training
         df['cost_deviation'] = df.apply(
             lambda row: row['sanction_amount'] / (district_means.get(row[district_col], 1) + 1), 
             axis=1
         )
         
-        # Train Financial AI on real spending patterns
+        # Train Financial Outlier AI on real spending patterns
         train_df = df[['sanction_amount', 'cost_deviation']].fillna(0)
         iso_forest.fit(train_df)
         
         # Train NLP Duplicate AI on real text descriptions
-        text_col = 'work_name' if 'work_name' in df.columns else (df.columns[2] if len(df.columns) > 2 else None)
-        if text_col:
-            historical_titles = df[text_col].dropna().astype(str).tolist()
+        text_cols = [c for c in df.columns if any(k in c.lower() for k in ['name', 'title', 'desc', 'work'])]
+        text_col = text_cols[0] if text_cols else df.columns[2]
+        
+        historical_titles = df[text_col].dropna().astype(str).tolist()
+        if historical_titles:
             historical_tfidf = vectorizer.fit_transform(historical_titles)
         
-        print(f"✅ AI Engine initialized with {len(df)} real MPLADS records.")
+        print(f"✅ AI Engine initialized successfully with {len(df)} real MPLADS records.")
         
     except Exception as e:
-        print(f"⚠️ Error parsing real dataset: {e}. Using fallback synthetic data.")
-        district_means = {}
+        print(f"⚠️ Error parsing real dataset: {e}. Falling back to synthetic baseline.")
         iso_forest.fit([[1000000, 1.0], [5000000, 5.0]])
         historical_titles = ["Fallback concrete road construction"]
         historical_tfidf = vectorizer.fit_transform(historical_titles)
 else:
-    print("⚠️ REAL DATASET NOT FOUND! Please place 'mplads_real_works.csv' in the backend folder.")
-    # Fallback minimal logic to prevent server crashes if the CSV is missing
+    print(f"⚠️ {CSV_FILE} NOT FOUND. Place it in the backend directory. Using fallback data.")
     iso_forest.fit([[1000000, 1.0], [5000000, 5.0]])
-    historical_titles = ["Construction of concrete approach road", "Installation of solar street lights", "Renovation of community hall"]
+    historical_titles = ["Construction of concrete approach road", "Installation of solar street lights"]
     historical_tfidf = vectorizer.fit_transform(historical_titles)
 
 # ----------------- API ENDPOINTS -----------------
@@ -106,32 +104,28 @@ class FeedbackInput(BaseModel):
 async def evaluate_work(data: WorkProposal):
     flags = []
     
-    # 1. EDGE CASE: All Zeros or Empty Data
+    # Edge Case: Blank or Zero Values
     if data.sanction_amount == 0 and data.funds_released == 0:
         return {
             "project_id": data.project_id,
             "risk_tier": "Invalid",
             "flags": ["Data Incomplete: Sanction amount and funds released are ₹0. Please enter valid financial data."],
-            "metrics": {
-                "deviation_ratio": 0.0,
-                "benford_score": 0.0,
-                "max_title_similarity": 0.0
-            }
+            "metrics": {"deviation_ratio": 0.0, "benford_score": 0.0, "max_title_similarity": 0.0}
         }
 
-    # Try to get the actual historical mean for this specific district, fallback to input if missing
+    # Retrieve real district mean, default to user input if district isn't in CSV
     actual_district_mean = district_means.get(data.district, data.district_mean_cost)
     safe_mean = actual_district_mean if actual_district_mean > 0 else 1
     
     deviation = round(data.sanction_amount / safe_mean, 2)
     
-    # 2. DYNAMIC FINANCIAL RULES
+    # Financial Rules
     if deviation > 1.5:
         flags.append(f"Cost deviation is {deviation}x higher than the historical average for {data.district}.")
     elif deviation < 0.3:
-        flags.append(f"Unusually low estimate ({deviation}x of average). Potential under-budgeting or scope reduction risk.")
+        flags.append(f"Unusually low estimate ({deviation}x of average). Potential scope reduction risk.")
 
-    # 3. DYNAMIC PROGRESS RULES
+    # Execution/Process Rules
     if data.funds_released >= data.sanction_amount and data.sanction_amount > 0 and data.physical_progress == 0:
         flags.append("Ghost Project Risk: 100% funds released with 0% physical progress reported.")
     elif data.physical_progress > 0 and data.funds_released == 0:
@@ -139,10 +133,9 @@ async def evaluate_work(data: WorkProposal):
     elif data.physical_progress == 100 and data.funds_released < data.sanction_amount:
         flags.append(f"Work marked 100% complete, but funds are only partially disbursed (₹{data.funds_released}). Check pending UCs.")
 
-    # 4. NLP DUPLICATE CHECK
+    # NLP Duplicate Detection against Real Data
     max_sim = 0.0
     if historical_tfidf is not None and data.work_name.strip():
-        # Clean text to prevent regex/NLP crashes
         clean_title = re.sub(r'[^a-zA-Z\s]', '', data.work_name.lower())
         if clean_title:
             title_vec = vectorizer.transform([clean_title])
@@ -153,7 +146,7 @@ async def evaluate_work(data: WorkProposal):
                 match_idx = int(np.argmax(similarities))
                 flags.append(f"Duplicate Risk: {max_sim*100:.1f}% text match with prior sanction: '{historical_titles[match_idx]}'.")
             
-    # 5. RISK TIER ASSIGNMENT
+    # Risk Tier Logic
     risk_tier = "Low"
     if len(flags) == 1:
         risk_tier = "Watch"
@@ -163,8 +156,7 @@ async def evaluate_work(data: WorkProposal):
     if not flags:
         flags.append("Standard execution pattern. No deviations detected against district baselines.")
 
-    # 6. DYNAMIC BENFORD SCORE
-    # Calculates a score based on the exact leading digit of the user's input amount
+    # Dynamic Benford Score Calculation (Mathematical derivation from leading digit)
     first_digit = int(str(int(data.sanction_amount))[0]) if data.sanction_amount > 0 else 1
     expected_prob = 1 / first_digit
     calculated_benford = round(abs(0.301 - expected_prob) + 0.1, 2)
@@ -182,12 +174,10 @@ async def evaluate_work(data: WorkProposal):
 
 @app.post("/api/verify-photo")
 async def verify_photo(project_id: str = Form(...), file: UploadFile = File(...)):
-    # Highly robust MD5 hashing to avoid PIL/Imagehash library crashes on Render memory limits
     content = await file.read()
     photo_hash = hashlib.md5(content).hexdigest()
     
-    # In a real database, we would compare this hash to previous uploads.
-    # For hackathon demonstration purposes, we randomize a flag to show UI capability.
+    # Simulate database hash collision for hackathon demonstration
     is_tampered = random.random() > 0.7 
     
     return {
@@ -198,13 +188,12 @@ async def verify_photo(project_id: str = Form(...), file: UploadFile = File(...)
 
 @app.post("/api/officer-feedback")
 async def save_feedback(data: FeedbackInput):
-    log_entry = {
+    officer_audit_logs.append({
         "project_id": data.project_id,
         "decision": data.decision,
         "notes": data.officer_notes
-    }
-    officer_audit_logs.append(log_entry)
-    return {"status": "success", "message": "Feedback recorded"}
+    })
+    return {"status": "success"}
 
 @app.get("/api/feedback-logs")
 async def get_feedback_logs():
