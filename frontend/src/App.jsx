@@ -5,7 +5,7 @@ import {
   Search, Home, MapPin, Users, BarChart2, MessageSquare 
 } from 'lucide-react';
 
-const API_BASE = 'https://netra-backend-your-project.onrender.com';
+const API_BASE = 'https://netra-backend-kmke.onrender.com';
 
 export default function App() {
   const [form, setForm] = useState({
